@@ -3,8 +3,3 @@ pandas
 numpy
 scipy
 matplotlib
-streamlit
-pandas
-numpy
-scipy
-matplotlib
