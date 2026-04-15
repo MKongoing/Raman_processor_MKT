@@ -80,7 +80,7 @@ def process_raman_data(df, d_range, g_range):
             d_area = trapezoid(corrected_d, wave_d) if len(wave_d) > 1 else 0.0
             
             # G 峰积分
-            g_mask = (wave >= g_range[0]) & (wave <= g_range[1])
+            g_mask = (wave >= g_range[0]) & (wave <= d_range[1])
             wave_g = wave[g_mask]
             intensity_g = intensity[g_mask]
             corrected_g, _ = correct_baseline(wave_g, intensity_g)
@@ -164,8 +164,8 @@ def select_max_d():
     if st.session_state.df_results is not None:
         max_d = st.session_state.df_results.loc[
             st.session_state.df_results['D_Area'].idxmax()]
-        st.session_state.selected_x = max_d['x']
-        st.session_state.selected_y = max_d['y']
+        st.session_state.selected_x = int(max_d['x'])
+        st.session_state.selected_y = int(max_d['y'])
 
 
 def select_max_g():
@@ -173,8 +173,8 @@ def select_max_g():
     if st.session_state.df_results is not None:
         max_g = st.session_state.df_results.loc[
             st.session_state.df_results['G_Area'].idxmax()]
-        st.session_state.selected_x = max_g['x']
-        st.session_state.selected_y = max_g['y']
+        st.session_state.selected_x = int(max_g['x'])
+        st.session_state.selected_y = int(max_g['y'])
 
 
 def main():
@@ -257,9 +257,9 @@ def main():
                 if df_results is not None:
                     st.session_state.df_results = df_results
                     st.session_state.current_fig = None
-                    # 初始化选择坐标为第一个点
-                    st.session_state.selected_x = float(df_results['x'].iloc[0])
-                    st.session_state.selected_y = float(df_results['y'].iloc[0])
+                    # 初始化选择坐标为第一个点（整数）
+                    st.session_state.selected_x = int(df_results['x'].iloc[0])
+                    st.session_state.selected_y = int(df_results['y'].iloc[0])
                     st.session_state.processed = True
                     st.success("✅ 数据处理完成！请查看下方结果和下载按钮。")
                     st.rerun()
@@ -275,12 +275,12 @@ def main():
             max_d = st.session_state.df_results.loc[
                 st.session_state.df_results['D_Area'].idxmax()]
             st.metric("最大 D 峰面积", f"{max_d['D_Area']:.2f}", 
-                     f"坐标：({max_d['x']}, {max_d['y']})")
+                     f"坐标：({int(max_d['x'])}, {int(max_d['y'])})")
         with col2:
             max_g = st.session_state.df_results.loc[
                 st.session_state.df_results['G_Area'].idxmax()]
             st.metric("最大 G 峰面积", f"{max_g['G_Area']:.2f}", 
-                     f"坐标：({max_g['x']}, {max_g['y']})")
+                     f"坐标：({int(max_g['x'])}, {int(max_g['y'])})")
         
         # 下载按钮（始终显示）
         csv = st.session_state.df_results.to_csv(index=False).encode('utf-8')
@@ -305,19 +305,24 @@ def main():
         with col1:
             st.markdown("**选择坐标点：**")
             
-            # 坐标输入
+            # 坐标输入（整数格式，步长=1）
             st.number_input("X 坐标", 
-                           value=st.session_state.selected_x,
+                           value=int(st.session_state.selected_x),
+                           step=1,
+                           format="%d",
                            key="x_coord_input",
-                           help="输入或选择 X 坐标")
-            st.number_input("Y 坐标", 
-                           value=st.session_state.selected_y,
-                           key="y_coord_input",
-                           help="输入或选择 Y 坐标")
+                           help="输入或选择 X 坐标（整数，步长=1）")
             
-            # 同步输入框值到 session_state
-            st.session_state.selected_x = st.session_state.x_coord_input
-            st.session_state.selected_y = st.session_state.y_coord_input
+            st.number_input("Y 坐标", 
+                           value=int(st.session_state.selected_y),
+                           step=1,
+                           format="%d",
+                           key="y_coord_input",
+                           help="输入或选择 Y 坐标（整数，步长=1）")
+            
+            # 同步输入框值到 session_state（保持整数）
+            st.session_state.selected_x = int(st.session_state.x_coord_input)
+            st.session_state.selected_y = int(st.session_state.y_coord_input)
             
             # 快速选择按钮
             st.markdown("**快速选择：**")
@@ -353,6 +358,7 @@ def main():
     st.markdown("""
     **提示：**
     - ✅ 结果和下载按钮会一直保留，即使绘制了新的光谱图
+    - ✅ 坐标输入支持整数格式，步长为 1
     - ✅ 可以随时修改参数重新处理
     - ✅ 上传新文件会自动重置所有数据
     - ✅ 快速选择按钮可快速定位最大峰坐标
