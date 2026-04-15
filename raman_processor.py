@@ -305,15 +305,20 @@ def main():
         with col1:
             st.markdown("**选择坐标点：**")
             
-            # 坐标输入
+                        # 坐标输入（修改为整数格式）
             st.number_input("X 坐标", 
-                           value=st.session_state.selected_x,
+                           value=int(st.session_state.selected_x),  # 转为整数
+                           step=1,                                    # 步长为 1
+                           format="%d",                               # 显示为整数
                            key="x_coord_input",
-                           help="输入或选择 X 坐标")
+                           help="输入或选择 X 坐标（整数）")
+            
             st.number_input("Y 坐标", 
-                           value=st.session_state.selected_y,
+                           value=int(st.session_state.selected_y),  # 转为整数
+                           step=1,                                    # 步长为 1
+                           format="%d",                               # 显示为整数
                            key="y_coord_input",
-                           help="输入或选择 Y 坐标")
+                           help="输入或选择 Y 坐标（整数）")
             
             # 同步输入框值到 session_state
             st.session_state.selected_x = st.session_state.x_coord_input
