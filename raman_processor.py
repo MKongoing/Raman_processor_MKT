@@ -2,7 +2,7 @@ import csv
 import numpy as np
 import pandas as pd
 import os
-from scipy.integrate import trapz
+
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 # 尝试导入新名字，如果失败则用旧名字（兼容老版本）
