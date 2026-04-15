@@ -159,8 +159,26 @@ def plot_spectrum(df, x, y, d_range, g_range):
 
 # ================= Streamlit 界面 =================
 
+def select_max_d():
+    """回调函数：选择最大 D 峰坐标"""
+    if st.session_state.df_results is not None:
+        max_d = st.session_state.df_results.loc[
+            st.session_state.df_results['D_Area'].idxmax()]
+        st.session_state.selected_x = max_d['x']
+        st.session_state.selected_y = max_d['y']
+
+
+def select_max_g():
+    """回调函数：选择最大 G 峰坐标"""
+    if st.session_state.df_results is not None:
+        max_g = st.session_state.df_results.loc[
+            st.session_state.df_results['G_Area'].idxmax()]
+        st.session_state.selected_x = max_g['x']
+        st.session_state.selected_y = max_g['y']
+
+
 def main():
-    # ========== 初始化 Session State（只运行一次）==========
+    # ========== 初始化 Session State ==========
     if 'df' not in st.session_state:
         st.session_state.df = None
     if 'df_results' not in st.session_state:
@@ -171,6 +189,14 @@ def main():
         st.session_state.g_range = (1570, 1605)
     if 'current_fig' not in st.session_state:
         st.session_state.current_fig = None
+    if 'selected_x' not in st.session_state:
+        st.session_state.selected_x = None
+    if 'selected_y' not in st.session_state:
+        st.session_state.selected_y = None
+    if 'uploaded_file_name' not in st.session_state:
+        st.session_state.uploaded_file_name = None
+    if 'processed' not in st.session_state:
+        st.session_state.processed = False
     
     # ========== 标题 ==========
     st.title("🔬 拉曼光谱数据处理系统")
@@ -191,15 +217,15 @@ def main():
     uploaded_file = st.file_uploader("📁 上传 TXT 数据文件", type=['txt'], 
                                      help="支持拖拽文件到此区域")
     
-    # 如果上传了新文件，保存到 session_state
+    # 检测新文件上传
     if uploaded_file is not None:
-        if 'uploaded_file_name' not in st.session_state or \
-           st.session_state.uploaded_file_name != uploaded_file.name:
+        if st.session_state.uploaded_file_name != uploaded_file.name:
             st.session_state.uploaded_file_name = uploaded_file.name
-            st.session_state.df = None  # 重置数据
-            st.session_state.df_results = None  # 重置结果
-            st.session_state.current_fig = None  # 重置图表
-            st.rerun()  # 重新运行以处理新文件
+            st.session_state.df = None
+            st.session_state.df_results = None
+            st.session_state.current_fig = None
+            st.session_state.processed = False
+            st.rerun()
         
         st.success(f"✅ 文件已加载：{uploaded_file.name}")
         
@@ -230,7 +256,11 @@ def main():
                 
                 if df_results is not None:
                     st.session_state.df_results = df_results
-                    st.session_state.current_fig = None  # 重置图表
+                    st.session_state.current_fig = None
+                    # 初始化选择坐标为第一个点
+                    st.session_state.selected_x = float(df_results['x'].iloc[0])
+                    st.session_state.selected_y = float(df_results['y'].iloc[0])
+                    st.session_state.processed = True
                     st.success("✅ 数据处理完成！请查看下方结果和下载按钮。")
                     st.rerun()
     
@@ -252,7 +282,7 @@ def main():
             st.metric("最大 G 峰面积", f"{max_g['G_Area']:.2f}", 
                      f"坐标：({max_g['x']}, {max_g['y']})")
         
-        # 下载按钮（重要！始终显示）
+        # 下载按钮（始终显示）
         csv = st.session_state.df_results.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 下载结果 CSV",
@@ -262,13 +292,13 @@ def main():
             key="download_btn"
         )
         
-        # 结果表格（可折叠）
+        # 结果表格
         with st.expander("📋 查看完整结果表格", expanded=False):
             st.dataframe(st.session_state.df_results)
         
-        # ========== 光谱查看器（与结果并列显示）==========
+        # ========== 光谱查看器 ==========
         st.markdown("---")
-        st.subheader(" 光谱查看器")
+        st.subheader("🎨 光谱查看器")
         
         col1, col2 = st.columns([1, 3])
         
@@ -276,34 +306,41 @@ def main():
             st.markdown("**选择坐标点：**")
             
             # 坐标输入
-            x_val = st.number_input("X 坐标", 
-                                   value=float(st.session_state.df_results['x'].iloc[0]),
-                                   key="x_coord_input")
-            y_val = st.number_input("Y 坐标", 
-                                   value=float(st.session_state.df_results['y'].iloc[0]),
-                                   key="y_coord_input")
+            st.number_input("X 坐标", 
+                           value=st.session_state.selected_x,
+                           key="x_coord_input",
+                           help="输入或选择 X 坐标")
+            st.number_input("Y 坐标", 
+                           value=st.session_state.selected_y,
+                           key="y_coord_input",
+                           help="输入或选择 Y 坐标")
+            
+            # 同步输入框值到 session_state
+            st.session_state.selected_x = st.session_state.x_coord_input
+            st.session_state.selected_y = st.session_state.y_coord_input
             
             # 快速选择按钮
             st.markdown("**快速选择：**")
-            if st.button("最大 D 峰坐标", key="btn_max_d"):
-                max_d = st.session_state.df_results.loc[
-                    st.session_state.df_results['D_Area'].idxmax()]
-                x_val = max_d['x']
-                y_val = max_d['y']
-            
-            if st.button("最大 G 峰坐标", key="btn_max_g"):
-                max_g = st.session_state.df_results.loc[
-                    st.session_state.df_results['G_Area'].idxmax()]
-                x_val = max_g['x']
-                y_val = max_g['y']
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                st.button("最大 D 峰", key="btn_max_d", on_click=select_max_d,
+                         help="快速定位到 D 峰面积最大的坐标点")
+            with col_btn2:
+                st.button("最大 G 峰", key="btn_max_g", on_click=select_max_g,
+                         help="快速定位到 G 峰面积最大的坐标点")
             
             # 绘制按钮
-            if st.button("🎨 绘制光谱", type="secondary", key="plot_btn"):
-                fig = plot_spectrum(st.session_state.df, x_val, y_val,
+            st.markdown("---")
+            if st.button("🎨 绘制光谱", type="secondary", key="plot_btn",
+                        help="根据当前坐标绘制光谱图"):
+                fig = plot_spectrum(st.session_state.df, 
+                                   st.session_state.selected_x, 
+                                   st.session_state.selected_y,
                                    st.session_state.d_range, 
                                    st.session_state.g_range)
                 if fig:
                     st.session_state.current_fig = fig
+                    st.success(f"已绘制坐标 ({st.session_state.selected_x}, {st.session_state.selected_y}) 的光谱")
         
         with col2:
             if st.session_state.current_fig is not None:
@@ -315,9 +352,10 @@ def main():
     st.markdown("---")
     st.markdown("""
     **提示：**
-    - 结果和下载按钮会一直保留，即使绘制了新的光谱图
-    - 可以随时修改参数重新处理
-    - 上传新文件会自动重置所有数据
+    - ✅ 结果和下载按钮会一直保留，即使绘制了新的光谱图
+    - ✅ 可以随时修改参数重新处理
+    - ✅ 上传新文件会自动重置所有数据
+    - ✅ 快速选择按钮可快速定位最大峰坐标
     """)
 
 
